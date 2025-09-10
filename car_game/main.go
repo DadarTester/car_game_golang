@@ -5,9 +5,11 @@ import (
 	"image/color"
 	"log"
 	"math/rand"
+	"os"
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
+	"github.com/hajimehoshi/ebiten/v2/inpututil" //пакет для считывания клавиш с keyboard
 )
 
 const (
@@ -16,7 +18,8 @@ const (
 	carWidth     = 50
 	carHeight    = 80
 	roadWidth    = 400
-	stripeSpeed  = 7.0 
+	stripeSpeed  = 5.0
+	enemySpeed   = 4.0
 )
 
 // Загружаем спрайты
@@ -30,93 +33,95 @@ var (
 )
 
 type Car struct {
-	X, Y    float64
-	Speed   float64
-	Width   float64
-	Height  float64
+	X, Y   float64
+	Speed  float64
+	Width  float64
+	Height float64
 }
 
 type Coin struct {
-	X, Y    float64
-	Width   float64
-	Height  float64
-	Speed   float64
-	Active  bool
+	X, Y   float64
+	Width  float64
+	Height float64
+	Speed  float64
+	Active bool
 }
 
 type EnemyCar struct {
-	X, Y    float64
-	Width   float64
-	Height  float64
-	Speed   float64
-	Color   string
+	X, Y   float64
+	Width  float64
+	Height float64
+	Speed  float64
+	Color  string
 }
 
 type Game struct {
-	playerCar     Car
-	enemyCars     []EnemyCar
-	coins         []Coin
-	stripeY       float64 
-	gameOver      bool
-	score         int
-	spawnTimer    int
+	playerCar      Car
+	enemyCars      []EnemyCar
+	coins          []Coin
+	stripeY        float64
+	gameOver       bool
+	score          int
+	spawnTimer     int
 	coinsCollected int
 }
 
+// Создание нашей машинки
 func createPlayerCarSprite() *ebiten.Image {
 	img := ebiten.NewImage(carWidth, carHeight)
-	
+
 	img.Fill(color.RGBA{220, 20, 20, 255})
-	
+
 	windowColor := color.RGBA{50, 100, 200, 255}
 	ebitenutil.DrawRect(img, 10, 10, 30, 20, windowColor)
 	ebitenutil.DrawRect(img, 10, 40, 30, 20, windowColor)
-	
+
 	wheelColor := color.RGBA{20, 20, 20, 255}
 	ebitenutil.DrawRect(img, 5, 15, 5, 15, wheelColor)
 	ebitenutil.DrawRect(img, 40, 15, 5, 15, wheelColor)
 	ebitenutil.DrawRect(img, 5, 50, 5, 15, wheelColor)
 	ebitenutil.DrawRect(img, 40, 50, 5, 15, wheelColor)
-	
+
 	lightColor := color.RGBA{255, 255, 0, 255}
 	ebitenutil.DrawRect(img, 5, 5, 5, 5, lightColor)
 	ebitenutil.DrawRect(img, 40, 5, 5, 5, lightColor)
-	
+
 	return img
 }
 
+// Создание синей машинки
 func createBlueEnemySprite() *ebiten.Image {
 	img := ebiten.NewImage(carWidth, carHeight)
-	
+
 	img.Fill(color.RGBA{20, 20, 220, 255})
-	
+
 	windowColor := color.RGBA{100, 150, 255, 255}
 	ebitenutil.DrawRect(img, 10, 10, 30, 20, windowColor)
 	ebitenutil.DrawRect(img, 10, 40, 30, 20, windowColor)
-	
+
 	wheelColor := color.RGBA{20, 20, 20, 255}
 	ebitenutil.DrawRect(img, 5, 15, 5, 15, wheelColor)
 	ebitenutil.DrawRect(img, 40, 15, 5, 15, wheelColor)
 	ebitenutil.DrawRect(img, 5, 50, 5, 15, wheelColor)
 	ebitenutil.DrawRect(img, 40, 50, 5, 15, wheelColor)
-	
+
 	lightColor := color.RGBA{255, 0, 0, 255}
 	ebitenutil.DrawRect(img, 5, 70, 5, 5, lightColor)
 	ebitenutil.DrawRect(img, 40, 70, 5, 5, lightColor)
-	
+
 	return img
 }
 
+// Создание зеленой машинки
 func createGreenEnemySprite() *ebiten.Image {
 	img := ebiten.NewImage(carWidth, carHeight)
-	
-	// Корпус машинки (зеленый)
+
 	img.Fill(color.RGBA{20, 220, 20, 255})
-	
+
 	windowColor := color.RGBA{100, 255, 150, 255}
 	ebitenutil.DrawRect(img, 10, 10, 30, 20, windowColor)
 	ebitenutil.DrawRect(img, 10, 40, 30, 20, windowColor)
-	
+
 	wheelColor := color.RGBA{20, 20, 20, 255}
 	ebitenutil.DrawRect(img, 5, 15, 5, 15, wheelColor)
 	ebitenutil.DrawRect(img, 40, 15, 5, 15, wheelColor)
@@ -126,38 +131,41 @@ func createGreenEnemySprite() *ebiten.Image {
 	lightColor := color.RGBA{255, 0, 0, 255}
 	ebitenutil.DrawRect(img, 5, 70, 5, 5, lightColor)
 	ebitenutil.DrawRect(img, 40, 70, 5, 5, lightColor)
-	
+
 	return img
 }
 
+// создание монетки
 func createCoinSprite() *ebiten.Image {
 	size := 30
 	img := ebiten.NewImage(size, size)
+
 	coinColor := color.RGBA{255, 215, 0, 255}
 	for y := 0; y < size; y++ {
 		for x := 0; x < size; x++ {
 			dx := float64(x - size/2)
 			dy := float64(y - size/2)
 			distance := dx*dx + dy*dy
+
 			if distance <= float64(size/2*size/2) {
 				img.Set(x, y, coinColor)
 			}
 		}
 	}
-	
+
 	darkCoinColor := color.RGBA{205, 173, 0, 255}
 	for y := 0; y < size; y++ {
 		for x := 0; x < size; x++ {
 			dx := float64(x - size/2)
 			dy := float64(y - size/2)
 			distance := dx*dx + dy*dy
-			
+
 			if distance <= float64(size/4*size/4) {
 				img.Set(x, y, darkCoinColor)
 			}
 		}
 	}
-	
+
 	return img
 }
 
@@ -166,17 +174,45 @@ func init() {
 	blueEnemySprite = createBlueEnemySprite()
 	greenEnemySprite = createGreenEnemySprite()
 	coinSprite = createCoinSprite()
+
 	roadSprite = ebiten.NewImage(roadWidth, screenHeight)
 	roadSprite.Fill(color.RGBA{50, 50, 50, 255})
-	
+
 	stripeSprite = ebiten.NewImage(10, 20)
 	stripeSprite.Fill(color.RGBA{255, 255, 0, 255})
 }
 
+func (g *Game) resetGame() {
+	g.playerCar = Car{
+		X:      (screenWidth - carWidth) / 2,
+		Y:      screenHeight - carHeight - 20,
+		Speed:  0,
+		Width:  carWidth,
+		Height: carHeight,
+	}
+	g.enemyCars = nil
+	g.coins = nil
+	g.stripeY = 0
+	g.gameOver = false
+	g.score = 0
+	g.spawnTimer = 0
+	g.coinsCollected = 0
+}
+
 func (g *Game) Update() error {
+	if inpututil.IsKeyJustPressed(ebiten.KeyEscape) {
+		os.Exit(0)
+	}
+
+	if inpututil.IsKeyJustPressed(ebiten.KeyR) {
+		g.resetGame()
+		return nil
+	}
+
 	if g.gameOver {
 		return nil
 	}
+
 	if ebiten.IsKeyPressed(ebiten.KeyLeft) {
 		g.playerCar.X -= 5
 	}
@@ -189,6 +225,7 @@ func (g *Game) Update() error {
 	if ebiten.IsKeyPressed(ebiten.KeyDown) {
 		g.playerCar.Speed -= 0.2
 	}
+
 	if g.playerCar.Speed > 10 {
 		g.playerCar.Speed = 10
 	}
@@ -197,9 +234,10 @@ func (g *Game) Update() error {
 	}
 
 	g.stripeY += stripeSpeed
-	if g.stripeY > 40 { 
+	if g.stripeY > 40 {
 		g.stripeY = 0
 	}
+
 	var roadLeft float64
 	roadLeft = (screenWidth - roadWidth) / 2
 	roadRight := roadLeft + roadWidth
@@ -212,10 +250,10 @@ func (g *Game) Update() error {
 
 	g.spawnTimer++
 	if g.spawnTimer > 60 && g.playerCar.Speed > 0 {
-		if rand.Intn(100) < 40 { 
+		if rand.Intn(100) < 30 { // 30% шанс вывода монетки, тк иначе появляется шанс столкновения объекта враж. машинки и монетки
 			coinWidth := 30.0
 			coinHeight := 30.0
-			
+
 			g.coins = append(g.coins, Coin{
 				X:      roadLeft + rand.Float64()*(roadWidth-coinWidth),
 				Y:      -coinHeight,
@@ -228,12 +266,11 @@ func (g *Game) Update() error {
 			var enemyHeight, enemyWidth float64
 			enemyWidth = carWidth
 			enemyHeight = carHeight
-			
 			colorChoice := "blue"
 			if rand.Intn(100) < 50 {
 				colorChoice = "green"
 			}
-			
+
 			g.enemyCars = append(g.enemyCars, EnemyCar{
 				X:      roadLeft + rand.Float64()*(roadWidth-enemyWidth),
 				Y:      -enemyHeight,
@@ -255,7 +292,6 @@ func (g *Game) Update() error {
 			g.playerCar.Y+carHeight > g.enemyCars[i].Y {
 			g.gameOver = true
 		}
-		
 		if g.enemyCars[i].Y > screenHeight {
 			g.enemyCars = append(g.enemyCars[:i], g.enemyCars[i+1:]...)
 			i--
@@ -266,9 +302,9 @@ func (g *Game) Update() error {
 		if !g.coins[i].Active {
 			continue
 		}
-		
+
 		g.coins[i].Y += g.coins[i].Speed
-	
+
 		if g.playerCar.X < g.coins[i].X+g.coins[i].Width &&
 			g.playerCar.X+carWidth > g.coins[i].X &&
 			g.playerCar.Y < g.coins[i].Y+g.coins[i].Height &&
@@ -280,12 +316,15 @@ func (g *Game) Update() error {
 			i--
 			continue
 		}
+
 		if g.coins[i].Y > screenHeight {
 			g.coins = append(g.coins[:i], g.coins[i+1:]...)
 			i--
 		}
 	}
+
 	g.score += int(g.playerCar.Speed)
+
 	return nil
 }
 
@@ -310,11 +349,10 @@ func (g *Game) Draw(screen *ebiten.Image) {
 		if coin.Active {
 			op := &ebiten.DrawImageOptions{}
 			op.GeoM.Translate(coin.X, coin.Y)
-	
 			scaleX := coin.Width / float64(coinSprite.Bounds().Dx())
 			scaleY := coin.Height / float64(coinSprite.Bounds().Dy())
 			op.GeoM.Scale(scaleX, scaleY)
-			
+
 			screen.DrawImage(coinSprite, op)
 		}
 	}
@@ -322,7 +360,7 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	for _, enemy := range g.enemyCars {
 		op := &ebiten.DrawImageOptions{}
 		op.GeoM.Translate(enemy.X, enemy.Y)
-		
+
 		if enemy.Color == "blue" {
 			screen.DrawImage(blueEnemySprite, op)
 		} else {
@@ -334,12 +372,13 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	carOp.GeoM.Translate(g.playerCar.X, g.playerCar.Y)
 	screen.DrawImage(playerCarSprite, carOp)
 
-	ebitenutil.DebugPrint(screen, 
+	ebitenutil.DebugPrint(screen,
 		fmt.Sprintf("Speed: %.1f\nScore: %d\nCoins: %d", g.playerCar.Speed, g.score, g.coinsCollected))
 
 	if g.gameOver {
 		ebitenutil.DebugPrintAt(screen, "GAME OVER", screenWidth/2-40, screenHeight/2)
 		ebitenutil.DebugPrintAt(screen, "Press R to restart", screenWidth/2-60, screenHeight/2+20)
+		ebitenutil.DebugPrintAt(screen, "Press ESC to exit", screenWidth/2-60, screenHeight/2+40)
 	}
 }
 
