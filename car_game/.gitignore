@@ -1,0 +1,44 @@
+# Бинарные файлы и исполняемые файлы
+/bin/
+/out/
+/dist/
+*.exe
+*.so
+*.dll
+*.app
+game
+main
+
+# Кэш и временные файлы Go
+/.testcache/
+*.out
+/tmp/
+/temp/
+/.cache/
+
+# Файлы IDE и редакторов
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Файлы покрытия кода
+coverage.txt
+profile.out
+
+# Логи и системные файлы
+*.log
+.DS_Store
+Thumbs.db
+
+# Игнорируем папку vendor
+/vendor/
+
+# Автогенерируемые файлы 
+/assets/generated/
+/build/
+
+# Игнорируем файлы модулей 
+go.sum
+go.mod
