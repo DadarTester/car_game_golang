@@ -6,7 +6,6 @@ import (
 	"log"
 	"math/rand"
 	"os"
-
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
 	"github.com/hajimehoshi/ebiten/v2/inpututil" //пакет для считывания клавиш с keyboard
@@ -254,7 +253,7 @@ func (g *Game) Update() error {
 			coinWidth := 30.0
 			coinHeight := 30.0
 
-			g.coins = append(g.coins, Coin{
+			g.coins = append(g.coins, Coin {
 				X:      roadLeft + rand.Float64()*(roadWidth-coinWidth),
 				Y:      -coinHeight,
 				Width:  coinWidth,
@@ -405,3 +404,4 @@ func main() {
 		log.Fatal(err)
 	}
 }
+
